@@ -44,10 +44,6 @@ if not config.exists(address_path):
     # Nothing to do
     sys.exit(0)
 
-# config.copy does not recursively create a path, so initialize the name path
-if not config.exists(name_path):
-    config.set(name_path)
-
 for address in config.list_nodes(address_path):
 
     # Move web-option as a configuration in each service instead of top level web-option
@@ -69,10 +65,13 @@ for address in config.list_nodes(address_path):
                     config.set(address_path + [address, 'rfc2136', rfc_cfg_new, 'protocol'], 'nsupdate')
 
             # Add address as config value in each service before moving the service path
-            # And then copy the services from 'address <interface> service <service>' to 'name <service>'
             for svc_cfg in config.list_nodes(address_path + [address, svc_type]):
                 config.set(address_path + [address, svc_type, svc_cfg, 'address'], address)
-                config.copy(address_path + [address, svc_type, svc_cfg], name_path + [svc_cfg])
+
+            # And then copy the services from 'address <interface> service <service>' to 'name <service>'
+            # via a rename operation to ensure we don't have to reconstruct the 'name' path
+            config.rename(address_path + [address, svc_type], 'name')
+            config.copy(address_path + [address, 'name'], name_path)
 
 # Finally cleanup the old address path
 config.delete(address_path)
