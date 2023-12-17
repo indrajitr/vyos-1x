@@ -309,6 +309,18 @@
                     </properties>
                     <children>
                       #include <include/generic-disable-node.xml.i>
+                      <leafNode name="mac-address">
+                        <properties>
+                          <help>Media Access Control (MAC) address</help>
+                          <valueHelp>
+                            <format>macaddr</format>
+                            <description>Hardware (MAC) address</description>
+                          </valueHelp>
+                          <constraint>
+                            <validator name="mac-address"/>
+                          </constraint>
+                        </properties>
+                      </leafNode>
                       <leafNode name="identifier">
                         <properties>
                           <help>Client identifier (DUID) for this static mapping</help>
