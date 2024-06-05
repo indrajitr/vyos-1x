@@ -4,7 +4,5 @@ ConditionPathExists={{ config_file }}
 After=vyos-router.service
 
 [Service]
-PIDFile={{ config_file | replace('.conf', '.pid') }}
-EnvironmentFile=
-ExecStart=
-ExecStart={{ vrf_command }}/usr/bin/ddclient -file {{ config_file }}
+Environment=daemon_interval={{ interval }}
+ExecStart={{ vrf_command }}/usr/bin/ddclient --daemon ${daemon_interval} --file {{ config_file }} --foreground

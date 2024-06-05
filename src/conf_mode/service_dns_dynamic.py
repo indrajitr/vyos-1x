@@ -48,8 +48,9 @@ ttl_supported = ['cloudflare', 'dnsexit2', 'gandi', 'hetzner', 'godaddy', 'nfsn'
 
 # Protocols that support both IPv4 and IPv6
 dualstack_supported = ['cloudflare', 'digitalocean', 'dnsexit2', 'duckdns',
-                       'dyndns2', 'easydns', 'freedns', 'hetzner', 'infomaniak',
-                       'njalla']
+                       'dyndns2', 'easydns', 'freedns', 'gandi', 'godaddy',
+                       'henet', 'hetzner', 'infomaniak', 'njalla', 'noip',
+                       'nsupdate', 'mythicdns', 'porkbun']
 
 # dyndns2 protocol in ddclient honors dual stack for selective servers
 # because of the way it is implemented in ddclient
@@ -111,12 +112,6 @@ def verify(dyndns):
             if 'skip' in config['address']['web'] and 'url' not in config['address']['web']:
                 raise ConfigError(f'"url" along with "skip" {error_msg_req} '
                                   f'with protocol "{config["protocol"]}"')
-            if 'url' in config['address']['web']:
-                # Warn if using checkip.dyndns.org, as it does not support HTTPS
-                # See: https://github.com/ddclient/ddclient/issues/597
-                if re.search("^(https?://)?checkip\.dyndns\.org", config['address']['web']['url']):
-                    Warning(f'"checkip.dyndns.org" does not support HTTPS requests for IP address '
-                            f'lookup. Please use a different IP address lookup service.')
 
         # RFC2136 uses 'key' instead of 'password'
         if config['protocol'] != 'nsupdate' and 'password' not in config:
@@ -146,7 +141,7 @@ def verify(dyndns):
             if config['protocol'] not in dualstack_supported:
                 raise ConfigError(f'Both IPv4 and IPv6 at the same time {error_msg_uns} '
                                   f'with protocol "{config["protocol"]}"')
-            # dyndns2 protocol in ddclient honors dual stack only for dyn.com (dyndns.org)
+            # dyndns2 protocol in ddclient honors dual stack only for selected servers
             if config['protocol'] == 'dyndns2' and 'server' in config and config['server'] not in dyndns_dualstack_servers:
                 raise ConfigError(f'Both IPv4 and IPv6 at the same time {error_msg_uns} '
                                   f'for "{config["server"]}" with protocol "{config["protocol"]}"')
