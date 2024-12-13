@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (C) 2022-2024 VyOS maintainers and contributors
+# Copyright (C) 2022-2025 VyOS maintainers and contributors
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 or later as
@@ -25,6 +25,7 @@ from ipaddress import ip_address
 from tabulate import tabulate
 
 import vyos.opmode
+import vyos.hostsd_client
 
 from vyos.base import Warning
 from vyos.configquery import ConfigTreeQuery
@@ -32,9 +33,11 @@ from vyos.configquery import ConfigTreeQuery
 from vyos.kea import kea_get_active_config
 from vyos.kea import kea_get_leases
 from vyos.kea import kea_get_pool_from_subnet_id
+from vyos.kea import kea_get_domain_from_subnet_id
 from vyos.kea import kea_delete_lease
-from vyos.utils.process import is_systemd_service_running
 from vyos.utils.process import call
+from vyos.utils.process import is_systemd_service_running
+from vyos.utils.process import process_named_running
 
 time_string = "%a %b %d %H:%M:%S %Z %Y"
 
@@ -109,6 +112,7 @@ def _get_raw_server_leases(family='inet', pool=None, sorted=None, state=[], orig
         lease_state_long = {0: 'active', 1: 'rejected', 2: 'expired'}
         data_lease['state'] = lease_state_long[lease['state']]
         data_lease['pool'] = kea_get_pool_from_subnet_id(active_config, inet_suffix, lease['subnet-id']) if active_config else '-'
+        data_lease['domain'] = kea_get_domain_from_subnet_id(active_config, inet_suffix, lease['subnet-id']) if active_config else ''
         data_lease['end'] = lease['expire_timestamp'].timestamp() if lease['expire_timestamp'] else None
         data_lease['origin'] = 'local' # TODO: Determine remote in HA
         data_lease['hostname'] = lease.get('hostname', '-')
@@ -405,6 +409,39 @@ def show_server_static_mappings(raw: bool, family: ArgFamily, pool: typing.Optio
         return static_mappings
     else:
         return _get_formatted_server_static_mappings(static_mappings, family=family)
+
+@_verify
+def update_dhcp_server_lease_to_hostd_state(family: ArgFamily, pool: typing.Optional[str]):
+    """
+    Update DHCP server leases to VyOS hostsd via vyos-hostsd-client.
+    """
+    # if dhcp server is down, inactive leases may still be shown as active, so warn the user.
+    v = '6' if family == 'inet6' else '4'
+    if not process_named_running(f'kea-dhcp{v}'):
+        Warning('DHCP server is configured but not started. Data may be stale.')
+
+    v = 'v6' if family == 'inet6' else ''
+    if pool and pool not in _get_dhcp_pools(family=family):
+        raise vyos.opmode.IncorrectValue(f'DHCP{v} pool "{pool}" does not exist!')
+
+    lease_data = _get_raw_server_leases(family=family, pool=pool, sorted=None, state=['active'], origin=None)
+
+    try:
+        hc = vyos.hostsd_client.Client()
+
+        for mapping in lease_data:
+            ip_addr = mapping.get('ip')
+            mac_addr = mapping.get('mac')
+            name = mapping.get('hostname')
+            name = name if name else f"host-{mac_addr.replace(':', '-')}"
+            domain = mapping.get('domain')
+            fqdn = f"{name}.{domain}" if domain else name
+            hc.add_hosts({f'dhcp-server-{ip_addr}': {fqdn: {'address': [ip_addr], 'aliases': []}}})
+
+        hc.apply()
+
+    except vyos.hostsd_client.VyOSHostsdError as e:
+        raise vyos.opmode.InternalError(str(e))
 
 def _lease_valid(inet, address):
     leases = kea_get_leases(inet)
