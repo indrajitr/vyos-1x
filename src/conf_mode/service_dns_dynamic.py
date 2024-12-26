@@ -38,18 +38,19 @@ zone_necessary = ['cloudflare', 'digitalocean', 'godaddy', 'hetzner', 'gandi',
 zone_supported = zone_necessary + ['dnsexit2', 'zoneedit1']
 
 # Protocols that do not require username
-username_unnecessary = ['1984', 'cloudflare', 'cloudns', 'digitalocean', 'dnsexit2',
-                        'duckdns', 'freemyip', 'hetzner', 'keysystems', 'njalla',
-                        'nsupdate', 'regfishde']
+username_unnecessary = ['1984', 'cloudflare', 'cloudns', 'ddns.fm', 'digitalocean',
+                        'dnsexit2', 'duckdns', 'freemyip', 'gandi', 'he.net',
+                        'hetzner', 'keysystems', 'njalla', 'nsupdate', 'regfishde']
 
 # Protocols that support TTL
 ttl_supported = ['cloudflare', 'dnsexit2', 'gandi', 'hetzner', 'godaddy', 'nfsn',
                  'nsupdate']
 
 # Protocols that support both IPv4 and IPv6
-dualstack_supported = ['cloudflare', 'digitalocean', 'dnsexit2', 'duckdns',
-                       'dyndns2', 'easydns', 'freedns', 'hetzner', 'infomaniak',
-                       'njalla']
+dualstack_supported = ['cloudflare', 'ddns.fm', 'digitalocean', 'dnsexit2',
+                       'domeneshop', 'duckdns', 'dyndns2', 'easydns', 'freedns',
+                       'gandi', 'godaddy', 'hetzner', 'infomaniak', 'inwx',
+                       'mythicdyn', 'njalla', 'noip', 'nsupdate']
 
 # dyndns2 protocol in ddclient honors dual stack for selective servers
 # because of the way it is implemented in ddclient
@@ -111,12 +112,6 @@ def verify(dyndns):
             if 'skip' in config['address']['web'] and 'url' not in config['address']['web']:
                 raise ConfigError(f'"url" along with "skip" {error_msg_req} '
                                   f'with protocol "{config["protocol"]}"')
-            if 'url' in config['address']['web']:
-                # Warn if using checkip.dyndns.org, as it does not support HTTPS
-                # See: https://github.com/ddclient/ddclient/issues/597
-                if re.search("^(https?://)?checkip\.dyndns\.org", config['address']['web']['url']):
-                    Warning(f'"checkip.dyndns.org" does not support HTTPS requests for IP address '
-                            f'lookup. Please use a different IP address lookup service.')
 
         # RFC2136 uses 'key' instead of 'password'
         if config['protocol'] != 'nsupdate' and 'password' not in config:
