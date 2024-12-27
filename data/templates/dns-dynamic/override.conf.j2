@@ -6,4 +6,4 @@ After=vyos-router.service
 [Service]
 EnvironmentFile=
 ExecStart=
-ExecStart={{ vrf_command }}/usr/bin/ddclient --file {{ config_file }}
+ExecStart={{ vrf_command }}/usr/bin/ddclient --file {{ config_file }} --foreground

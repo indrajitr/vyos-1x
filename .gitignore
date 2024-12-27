@@ -154,3 +154,18 @@ data/configd-include.json
 # We do not use pip
 Pipfile
 Pipfile.lock
+
+*-debug-[0-9]*
+*-debuging*
+*vyos-hostsd-debug*
+*-wip-[0-9]*
+*-wip[0-9]*
+*-wip-debug*
+*-not-used-[0-9]*
+*-notused-[0-9]*
+*-notused-anymore*
+*-notused-debug*
+*-2023-*
+*-2024-*
+dns-dynamic.xml.in-current*
+*\ copy*
