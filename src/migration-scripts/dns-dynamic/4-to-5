@@ -14,10 +14,12 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 # T6981:
-# - remove "service dns dynamic name cloudflare address web url ..."
+# - remove "service dns dynamic name <service> protocol googledomains"
+# - remove "service dns dynamic name <service> address web url ..."
 #     when url is https://domains.google.com/*
 
 import re
+from vyos.base import Warning
 from vyos.configtree import ConfigTree
 
 base_path = ['service', 'dns', 'dynamic', 'name']
@@ -30,6 +32,10 @@ def migrate(config: ConfigTree) -> None:
     for service in config.list_nodes(base_path):
 
         service_path = base_path + [service]
+
+        if config.exists(service_path + ['protocol', 'googledomains']):
+            Warning(f'Removing {service} using protocol "googledomains" because the service has been shutdown')
+            config.delete(service_path + ['protocol', 'googledomains'])
 
         if config.exists(service_path + ['address', 'web']):
             web_address = config.return_value(service_path + ['address', 'web'])
