@@ -49,8 +49,8 @@ ttl_supported = ['cloudflare', 'dnsexit2', 'gandi', 'hetzner', 'godaddy', 'nfsn'
 # Protocols that support both IPv4 and IPv6
 dualstack_supported = ['cloudflare', 'ddns.fm', 'digitalocean', 'dnsexit2',
                        'domeneshop', 'duckdns', 'dyndns2', 'easydns', 'freedns',
-                       'gandi', 'godaddy', 'hetzner', 'infomaniak', 'inwx',
-                       'mythicdyn', 'njalla', 'noip', 'nsupdate']
+                       'gandi', 'godaddy', 'he.net', 'hetzner', 'infomaniak',
+                       'inwx', 'mythicdyn', 'njalla', 'noip', 'nsupdate']
 
 # dyndns2 protocol in ddclient honors dual stack for selective servers
 # because of the way it is implemented in ddclient
