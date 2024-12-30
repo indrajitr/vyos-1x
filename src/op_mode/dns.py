@@ -84,19 +84,8 @@ def _get_dynamic_host_records_raw() -> dict:
                 # we pick up the ones we are interested in
                 for kvraw in line.split(' ')[0].split(','):
                     k, v = kvraw.split('=')
-                    if k in list(_dynamic_status_columns.keys()) + ['ip', 'status']:  # ip and status are legacy keys
+                    if k in list(_dynamic_status_columns.keys()):
                         props[k] = v
-
-                # Extract IPv4 and IPv6 address and status from legacy keys
-                # Dual-stack isn't supported in legacy format, 'ip' and 'status' are for one of IPv4 or IPv6
-                if 'ip' in props:
-                    if is_ipv4(props['ip']):
-                        props['ipv4'] = props['ip']
-                        props['status-ipv4'] = props['status']
-                    elif is_ipv6(props['ip']):
-                        props['ipv6'] = props['ip']
-                        props['status-ipv6'] = props['status']
-                    del props['ip']
 
                 # Convert mtime to human readable format
                 if 'mtime' in props:
