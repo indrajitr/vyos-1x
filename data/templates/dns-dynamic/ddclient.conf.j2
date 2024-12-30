@@ -25,8 +25,6 @@ daemon={{ interval }}
 syslog=yes
 pid={{ config_file | replace('.conf', '.pid') }}
 cache={{ config_file | replace('.conf', '.cache') }}
-{# ddclient default (use=ip) results in confusing warning message in log #}
-use=no
 
 {% if name is vyos_defined %}
 {%     for service, config in name.items() %}
