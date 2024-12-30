@@ -150,7 +150,7 @@ class TestServiceDDNS(VyOSUnitTestSHIM.TestCase):
     def test_03_dyndns_service_dual_stack(self):
         services = {'cloudflare': {'protocol': 'cloudflare', 'zone': zone},
                     'freedns': {'protocol': 'freedns', 'username': username},
-                    'google': {'protocol': 'googledomains', 'username': username}}
+                    'changeip': {'protocol': 'changeip', 'username': username}}
         ip_version = 'both'
 
         for name, details in services.items():
@@ -160,7 +160,7 @@ class TestServiceDDNS(VyOSUnitTestSHIM.TestCase):
             for opt, value in details.items():
                 self.cli_set(name_path + [name, opt, value])
 
-            # Dual stack is supported by 'cloudfare' and 'freedns' but not 'googledomains'
+            # Dual stack is supported by 'cloudfare' and 'freedns' but not 'changeip'
             # exception is raised for unsupported ones
             self.cli_set(name_path + [name, 'ip-version', ip_version])
             if details['protocol'] not in ['cloudflare', 'freedns']:
@@ -175,7 +175,9 @@ class TestServiceDDNS(VyOSUnitTestSHIM.TestCase):
             ddclient_conf = cmd(f'sudo cat {DDCLIENT_CONF}')
             if details['protocol'] not in ['cloudflare', 'freedns']:
                 self.assertIn(f'usev4=ifv4', ddclient_conf)
+                self.assertNotIn(f'usev6=ifv6', ddclient_conf)
                 self.assertIn(f'ifv4={interface}', ddclient_conf)
+                self.assertNotIn(f'ifv6={interface}', ddclient_conf)
             else:
                 self.assertIn(f'usev4=ifv4', ddclient_conf)
                 self.assertIn(f'usev6=ifv6', ddclient_conf)
