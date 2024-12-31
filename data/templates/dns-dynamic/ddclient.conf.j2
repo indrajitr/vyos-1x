@@ -32,8 +32,6 @@ if{{ ipv }}={{ address }}, \
 {#             ip_suffixes can be either of ['v4'], ['v6'], ['v4', 'v6'] for all protocols #}
 {%             set ip_suffixes = ['v4', 'v6'] if config.ip_version == 'both'
                                  else [config.ip_version[2:]] %}
-{%             set password = config.key if config.protocol == 'nsupdate'
-                              else config.password %}
 {%             set address = 'web' if config.address.web is vyos_defined
                               else config.address.interface %}
 {%             set web_options = config.address.web | default({}) %}
