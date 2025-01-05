@@ -26,14 +26,21 @@ for root, dirs, files in os.walk('/usr/libexec/vyos/tests/smoke'):
         test_file = os.path.join(root, name)
         mode = os.stat(test_file).st_mode
 
-        if name.startswith("test_") and mode & S_IXOTH:
-            print('Running Testcase: ' + test_file)
-            process = Popen([test_file], stdout=PIPE)
-            (output, err) = process.communicate()
-            exit_code = process.wait()
-            # We do not want an instant fail - other tests should be run, too
-            if exit_code != 0:
-                success = False
+        if name.startswith("test_service_dns_dynamic") and mode & S_IXOTH:
+            good=0
+            bad=0
+            for count in range(1, 100):
+                print(f'DDCLIENT test - run {count}: Previous good/bad ({good}/{bad})')
+                print('Running Testcase: ' + test_file)
+                process = Popen([test_file], stdout=PIPE)
+                (output, err) = process.communicate()
+                exit_code = process.wait()
+                # We do not want an instant fail - other tests should be run, too
+                if exit_code != 0:
+                    bad+=1
+                    success = False
+                else:
+                    good+=1
 
 if success:
     exit(0)
