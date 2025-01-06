@@ -9,6 +9,8 @@ on:
       - '!.github/**'
       - '!**/*.md'
 
+  workflow_dispatch:
+
 permissions:
   pull-requests: write
   contents: read
