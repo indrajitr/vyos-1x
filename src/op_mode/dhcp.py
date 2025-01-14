@@ -31,9 +31,11 @@ from vyos.base import Warning
 from vyos.configquery import ConfigTreeQuery
 
 from vyos.kea import kea_get_active_config
+from vyos.kea import kea_get_dhcp_pools
 from vyos.kea import kea_get_leases
 from vyos.kea import kea_get_pool_from_subnet_id
 from vyos.kea import kea_get_domain_from_subnet_id
+from vyos.kea import kea_get_static_mappings
 from vyos.kea import kea_delete_lease
 from vyos.utils.process import call
 from vyos.utils.process import is_systemd_service_running
@@ -89,15 +91,15 @@ def _get_raw_server_leases(family='inet', pool=None, sorted=None, state=[], orig
     except Exception:
         raise vyos.opmode.DataUnavailable('Cannot fetch DHCP server lease information')
 
-    if pool is None:
-        pool = _get_dhcp_pools(family=family)
-    else:
-        pool = [pool]
-
     try:
         active_config = kea_get_active_config(inet_suffix)
     except Exception:
         raise vyos.opmode.DataUnavailable('Cannot fetch DHCP server configuration')
+
+    if pool is None:
+        pool = kea_get_dhcp_pools(active_config, inet_suffix)
+    else:
+        pool = [pool]
 
     data = []
     for lease in leases:
@@ -267,34 +269,22 @@ def _get_formatted_pool_statistics(pool_data, family='inet'):
     output = tabulate(data_entries, headers, numalign='left')
     return output
 
-def _get_raw_server_static_mappings(family='inet', pool=None, sorted=None):
-    if pool is None:
-        pool = _get_dhcp_pools(family=family)
-    else:
-        pool = [pool]
 
-    v = 'v6' if family == 'inet6' else ''
-    mappings = []
-    for p in pool:
-        pool_config = config.get_config_dict(['service', f'dhcp{v}-server', 'shared-network-name', p],
-                                             get_first_key=True)
-        if 'subnet' in pool_config:
-            for subnet, subnet_config in pool_config['subnet'].items():
-                if 'static-mapping' in subnet_config:
-                    for name, mapping_config in subnet_config['static-mapping'].items():
-                        mapping = {'pool': p, 'subnet': subnet, 'name': name}
-                        mapping.update(mapping_config)
-                        mappings.append(mapping)
+def _get_raw_server_static_mappings(active_config, family='inet', pool=None, sorted=None):
+
+    inet_suffix = '6' if family == 'inet6' else '4'
+    pools = [pool] if pool else kea_get_dhcp_pools(active_config, inet_suffix)
+
+    mappings = kea_get_static_mappings(active_config, inet_suffix, pools)
 
     if sorted:
         if sorted == 'ip':
-            if family == 'inet6':
-                mappings.sort(key = lambda x:ip_address(x['ipv6-address']))
-            else:
-                mappings.sort(key = lambda x:ip_address(x['ip-address']))
+            v = 'v6' if family == 'inet6' else ''
+            mappings.sort(key = lambda x:ip_address(x[f'ip{v}-address']))
         else:
             mappings.sort(key = lambda x:x[sorted])
     return mappings
+
 
 def _get_formatted_server_static_mappings(raw_data, family='inet'):
     data_entries = []
@@ -302,24 +292,24 @@ def _get_formatted_server_static_mappings(raw_data, family='inet'):
         for entry in raw_data:
             pool = entry.get('pool')
             subnet = entry.get('subnet')
-            name = entry.get('name')
+            hostname = entry.get('hostname')
             ip_addr = entry.get('ip-address', 'N/A')
             mac_addr = entry.get('mac', 'N/A')
             duid = entry.get('duid', 'N/A')
             description = entry.get('description', 'N/A')
-            data_entries.append([pool, subnet, name, ip_addr, mac_addr, duid, description])
+            data_entries.append([pool, subnet, hostname, ip_addr, mac_addr, duid, description])
     elif family == 'inet6':
         for entry in raw_data:
             pool = entry.get('pool')
             subnet = entry.get('subnet')
-            name = entry.get('name')
+            hostname = entry.get('hostname')
             ip_addr = entry.get('ipv6-address', 'N/A')
             mac_addr = entry.get('mac', 'N/A')
             duid = entry.get('duid', 'N/A')
             description = entry.get('description', 'N/A')
-            data_entries.append([pool, subnet, name, ip_addr, mac_addr, duid, description])
+            data_entries.append([pool, subnet, hostname, ip_addr, mac_addr, duid, description])
 
-    headers = ['Pool', 'Subnet', 'Name', 'IP Address', 'MAC Address', 'DUID', 'Description']
+    headers = ['Pool', 'Subnet', 'Hostname', 'IP Address', 'MAC Address', 'DUID', 'Description']
     output = tabulate(data_entries, headers, numalign='left')
     return output
 
@@ -398,13 +388,22 @@ def show_server_leases(raw: bool, family: ArgFamily, pool: typing.Optional[str],
 def show_server_static_mappings(raw: bool, family: ArgFamily, pool: typing.Optional[str],
                                 sorted: typing.Optional[str]):
     v = 'v6' if family == 'inet6' else ''
-    if pool and pool not in _get_dhcp_pools(family=family):
+    inet_suffix = '6' if family == 'inet6' else '4'
+
+    try:
+        active_config = kea_get_active_config(inet_suffix)
+    except Exception:
+        raise vyos.opmode.DataUnavailable('Cannot fetch DHCP server configuration')
+
+    active_pools = kea_get_dhcp_pools(active_config, inet_suffix)
+
+    if pool and active_pools and pool not in active_pools:
         raise vyos.opmode.IncorrectValue(f'DHCP{v} pool "{pool}" does not exist!')
 
     if sorted and sorted not in mapping_sort_valid:
         raise vyos.opmode.IncorrectValue(f'DHCP{v} sort "{sorted}" is invalid!')
 
-    static_mappings = _get_raw_server_static_mappings(family=family, pool=pool, sorted=sorted)
+    static_mappings = _get_raw_server_static_mappings(active_config, family=family, pool=pool, sorted=sorted)
     if raw:
         return static_mappings
     else:
@@ -445,10 +444,7 @@ def update_dhcp_server_lease_to_hostd_state(family: ArgFamily, pool: typing.Opti
 
 def _lease_valid(inet, address):
     leases = kea_get_leases(inet)
-    for lease in leases:
-        if address == lease['ip-address']:
-            return True
-    return False
+    return any(lease['ip-address'] == address for lease in leases)
 
 @_verify
 def clear_dhcp_server_lease(family: ArgFamily, address: str):

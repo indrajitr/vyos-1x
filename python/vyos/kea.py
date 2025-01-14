@@ -373,6 +373,10 @@ def kea_get_active_config(inet):
 
     return config
 
+def kea_get_dhcp_pools(config, inet):
+    shared_networks = dict_search_args(config, 'arguments', f'Dhcp{inet}', 'shared-networks')
+    return [network['name'] for network in shared_networks] if shared_networks else []
+
 def kea_get_pool_from_subnet_id(config, inet, subnet_id):
     shared_networks = dict_search_args(config, 'arguments', f'Dhcp{inet}', 'shared-networks')
 
@@ -411,3 +415,25 @@ def kea_get_domain_from_subnet_id(config, inet, subnet_id):
                     return option['data']
 
     return None
+
+def kea_get_static_mappings(config, inet, pools=[]):
+    shared_networks = dict_search_args(config, 'arguments', f'Dhcp{inet}', 'shared-networks')
+
+    mappings = []
+
+    if shared_networks:
+        for network in shared_networks:
+            if f'subnet{inet}' not in network:
+                continue
+
+            for p in pools:
+                if network['name'] == p:
+                    for subnet in network[f'subnet{inet}']:
+                        if 'reservations' in subnet:
+                            for reservation in subnet['reservations']:
+                                mapping = {'pool': p, 'subnet': subnet['subnet']}
+                                mapping.update(reservation)
+                                mapping['mac'] = mapping.pop('hw-address', None) # rename 'hw-address' to 'mac'
+                                mappings.append(mapping)
+
+    return mappings
